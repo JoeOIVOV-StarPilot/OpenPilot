@@ -205,10 +205,10 @@ class CarSpecificEvents:
                              self.CP.openpilotLongitudinalControl and not self.CP.pcmCruise)
     pcm_enable = pcm_enable or preap_software_cruise
 
-    if CS.doorOpen:
-      events.add(EventName.doorOpen)
-    if CS.seatbeltUnlatched:
-      events.add(EventName.seatbeltNotLatched)
+    #if CS.doorOpen:
+      #events.add(EventName.doorOpen)
+    #if CS.seatbeltUnlatched:
+      #events.add(EventName.seatbeltNotLatched)
     if CS.gearShifter != GearShifter.drive and (extra_gears is None or
        CS.gearShifter not in extra_gears):
       events.add(EventName.wrongGear)
