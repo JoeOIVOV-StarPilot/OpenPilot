@@ -41,6 +41,8 @@ class DriverStateRenderer(Widget):
     self._dm_cone = gui_app.texture("icons_mici/onroad/driver_monitoring/dm_cone.png", CONE_SIZE, CONE_SIZE)
 
   def _render(self, rect):
+    return  # <--- Add this line here to completely hide the face icon
+    
     bg = self._dm_background
     rl.draw_texture_ex(bg,
                        rl.Vector2(self.position_x - bg.width / 2,
