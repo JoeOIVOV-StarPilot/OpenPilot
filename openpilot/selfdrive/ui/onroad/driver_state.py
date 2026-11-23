@@ -1,6 +1,6 @@
 import numpy as np
 from openpilot.starpilot.ui.raylib import rl
-from openpilot.cereal import log
+from openpilot.cereal import log, custom
 from dataclasses import dataclass
 from openpilot.selfdrive.ui import UI_BORDER_SIZE
 from openpilot.selfdrive.ui.ui_state import ui_state
@@ -61,6 +61,8 @@ class DriverStateRenderer(Widget):
     self.face_keypoints_transformed = np.zeros((DEFAULT_FACE_KPTS_3D.shape[0], 2), dtype=np.float32)
     self.position_x: float = 0.0
     self.position_y: float = 0.0
+    self.x_shift: float = 0.0
+    self.auto_position = True
     self.h_arc_data = None
     self.v_arc_data = None
 
@@ -78,10 +80,21 @@ class DriverStateRenderer(Widget):
     self.engaged_color = rl.Color(26, 242, 66, 255)
     self.disengaged_color = rl.Color(139, 139, 139, 255)
 
-    self.set_visible(lambda: (ui_state.sm["selfdriveState"].alertSize == AlertSize.none and
-                              ui_state.sm.recv_frame["driverStateV2"] > ui_state.started_frame))
+    self.set_visible(self._should_draw)
+
+  def _should_draw(self) -> bool:
+    sm = ui_state.sm
+    alert_ok = sm["selfdriveState"].alertSize == AlertSize.none
+    if alert_ok:
+      starpilot_ss = sm["starpilotSelfdriveState"]
+      alert_ok = starpilot_ss.alertSize == custom.StarPilotSelfdriveState.AlertSize.none
+    data_fresh = sm.recv_frame["driverStateV2"] > ui_state.started_frame
+    not_hidden = not ui_state.starpilot_toggles.get("hide_dm_icon", False)
+    return alert_ok and data_fresh and not_hidden
 
   def _render(self, rect):
+    return
+
     # Set opacity based on active state
     opacity = 0.65 if self.is_active else 0.2
 
@@ -163,10 +176,11 @@ class DriverStateRenderer(Widget):
   def _pre_calculate_drawing_elements(self):
     """Pre-calculate all drawing elements based on the current rectangle"""
     # Calculate icon position (bottom-left or bottom-right)
-    width, height = self._rect.width, self._rect.height
-    offset = UI_BORDER_SIZE + BTN_SIZE // 2
-    self.position_x = self._rect.x + (width - offset if self.is_rhd else offset)
-    self.position_y = self._rect.y + height - offset
+    if self.auto_position:
+      width, height = self._rect.width, self._rect.height
+      offset = UI_BORDER_SIZE + BTN_SIZE // 2 + 20
+      self.position_x = self._rect.x + (width - offset if self.is_rhd else offset) + self.x_shift
+      self.position_y = self._rect.y + height - offset
 
     # Pre-calculate the face lines positions
     positioned_keypoints = self.face_keypoints_transformed + np.array([self.position_x, self.position_y])
