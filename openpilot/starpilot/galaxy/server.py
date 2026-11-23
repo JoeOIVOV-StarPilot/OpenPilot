@@ -1081,6 +1081,7 @@ def make_server(*, port=8082, host='127.0.0.1', monitor=None, owner=None, crashe
         try:
           result = navigation_owner().snapshot(route_key if re.fullmatch(r'[0-9a-f]{16}', route_key) else None)
           result['phoneRoutePreviewVersion'] = 1
+          result['phoneRouteTripVersion'] = 1
         except (OSError, ValueError, RuntimeError):
           self.json(503, {'error': 'Navigation status is unavailable'})
         else:
@@ -1744,7 +1745,7 @@ def make_server(*, port=8082, host='127.0.0.1', monitor=None, owner=None, crashe
                       '/api/models/laboratory', '/api/models/laboratory/download', '/api/models/laboratory/delete',
                       '/api/sounds/preview', '/api/sounds/download', '/api/sounds/cancel', '/api/software/action', '/api/drives/ignore',
                       '/api/recordings/delete-videos', '/api/sentry/notifications', '/api/sentry/events/delete', '/api/crash-reports/delete',
-                      '/api/navigation/search', '/api/navigation/action', '/api/navigation/phone-preview', '/api/navigation/offline', '/api/drive-state/action',
+                      '/api/navigation/search', '/api/navigation/action', '/api/navigation/phone-preview', '/api/navigation/phone-trip', '/api/navigation/offline', '/api/drive-state/action',
                       '/api/toyota-tools/action', '/api/vehicle-selection/preview', '/api/vehicle-selection/confirm'):
         self.json(405, {'error': 'Method unavailable'})
         return
@@ -1763,7 +1764,7 @@ def make_server(*, port=8082, host='127.0.0.1', monitor=None, owner=None, crashe
         size = int(self.headers.get('Content-Length', ''))
       except ValueError:
         size = -1
-      max_size = (64 * 1024 if path == '/api/navigation/phone-preview' else 256 * 1024 if path == '/api/settings/restore' else 66 * 1024 if path == '/api/settings/flm-backup/preview' else
+      max_size = (68 * 1024 if path == '/api/navigation/phone-trip' else 64 * 1024 if path == '/api/navigation/phone-preview' else 256 * 1024 if path == '/api/settings/restore' else 66 * 1024 if path == '/api/settings/flm-backup/preview' else
                   17408 if path in ('/api/ui/layout', '/api/ui/layout/preview') else 4096)
       if not 0 < size <= max_size:
         self.json(413, {'error': 'Invalid request size'})
@@ -2007,6 +2008,36 @@ def make_server(*, port=8082, host='127.0.0.1', monitor=None, owner=None, crashe
           self.json(400, {'error': str(error)})
         except OSError:
           self.json(503, {'error': 'Offline maps could not be saved. Try again shortly.'})
+        else:
+          if self.settings_session() == identity:
+            self.json(200, result)
+          else:
+            self.json(401, {'error': 'Sign in to Galaxy'})
+        return
+      if path == '/api/navigation/phone-trip':
+        from openpilot.starpilot.navigation.owner import ConflictError, ValidationError
+        identity = self.settings_session()
+        if identity is None:
+          self.json(401, {'error': 'Sign in to Galaxy'})
+          return
+
+        def permitted():
+          return self.settings_session() == identity and configuration_allowed()
+
+        try:
+          if not permitted():
+            raise PermissionError
+          if not isinstance(payload, dict) or set(payload) != {'revision', 'destination', 'phoneRoute'}:
+            raise ValidationError('Invalid iPhone trip')
+          result = navigation_owner().select_phone_route(payload['destination'], payload['phoneRoute'], payload['revision'], permitted)
+        except ConflictError as exc:
+          self.json(409, {'error': str(exc)})
+        except PermissionError:
+          self.json(409, {'error': 'Park and reconnect before starting an iPhone route'})
+        except ValidationError as exc:
+          self.json(400, {'error': str(exc)})
+        except OSError:
+          self.json(503, {'error': 'Could not save the iPhone trip'})
         else:
           if self.settings_session() == identity:
             self.json(200, result)

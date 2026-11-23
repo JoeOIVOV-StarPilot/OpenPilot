@@ -88,6 +88,33 @@ class NavigationHttpTest(unittest.TestCase):
     self.assertEqual(self.request(path, payload=payload, cookie=self.local_cookie)[0], 409)
     self.assertEqual(before, self.navigation.read())
 
+  def test_phone_trip_is_opt_in_and_legacy_select_replaces_it(self):
+    nav = self.navigation
+    rev = nav.configure({'enabled': True, 'token': 'pk.test'}, nav.read()['revision'], True)['revision']
+    start = [[-80, 44], [-80, 44.01]]
+    place = {'name': 'Library', 'longitude': -80, 'latitude': 44.01}
+    steps = [{'distance': 1112, 'duration': 75, 'maneuver': {'type': 'depart'}},
+             {'distance': 0, 'duration': 0, 'maneuver': {'type': 'arrive'}}]
+    route = {'geometry': {'coordinates': start}, 'legs': [{'steps': steps}], 'distance': 1112, 'duration': 75}
+    body = {'revision': rev, 'destination': place, 'phoneRoute': {'version': 1, 'route': route}}
+    path = '/api/navigation/phone-trip'
+    self.assertEqual(self.request(path, payload=body, remote=True)[0], 401)
+    self.parked = False
+    self.assertEqual(self.request(path, payload=body, cookie=self.local_cookie)[0], 409)
+    self.parked = True
+    invalid = dict(body, destination=dict(place, longitude=-81))
+    self.assertEqual(self.request(path, payload=invalid, cookie=self.local_cookie)[0], 400)
+    self.assertEqual(nav.read()['revision'], rev)
+    code, active, _ = self.request(path, payload=body, cookie=self.local_cookie)
+    self.assertEqual(code, 200)
+    self.assertEqual(active['activeRouteSource'], 'iphone')
+    self.assertEqual(self.request(path, payload=body, cookie=self.local_cookie)[0], 409)
+    old_client = {'action': 'select', 'revision': active['revision'], 'destination': place}
+    code, regular, _ = self.request('/api/navigation/action', payload=old_client, cookie=self.local_cookie)
+    self.assertEqual(code, 200)
+    self.assertNotIn('activeRouteSource', regular)
+    self.assertNotIn('phoneRoute', nav.read_routing())
+
   def test_map_tiles_recheck_authentication_after_provider(self):
     def tile(*args):
       self.pairing.unpair()
