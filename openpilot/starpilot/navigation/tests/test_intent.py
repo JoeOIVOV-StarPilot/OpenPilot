@@ -63,7 +63,7 @@ def test_far_signal_is_available_for_lane_selection(sm):
   assert matching_turn_signal(sm, NOW, supported=True)
 
 
-@pytest.mark.parametrize("earlier", [-75, -50, -25, 0, 25, 50, 75])
+@pytest.mark.parametrize("earlier", [-3, -2, -1, 0, 1, 2, 3])
 def test_turn_distance_advances_between_fixes(sm, earlier):
   cp = NS(openpilotLongitudinalControl=True, passive=False, dashcamOnly=False, minSteerSpeed=0.)
   nav = sm['starpilotNavigation'].navigation
@@ -79,12 +79,23 @@ def test_turn_distance_advances_between_fixes(sm, earlier):
 @pytest.mark.parametrize("kind,modifier,margin", [("turn", "left", 20.), ("turn", "sharpRight", 8.), ("roundabout", "right", 8.)])
 def test_signed_distance_changes_approach_and_keeps_turn_target(kind, modifier, margin):
   maneuver = NS(maneuverType=kind, maneuverModifier=modifier, distanceMeters=500.)
-  offsets = (-75, -50, -25, 0, 25, 50, 75)
-  targets = [turn_speed(maneuver, 0., earlier_m=offset) for offset in offsets]
-  assert all(a > b for a, b in zip(targets, targets[1:], strict=False))
+  offsets = (-3, -2, -1, 0, 1, 2, 3)
+  targets = [turn_speed(maneuver, 0., timing_level=offset) for offset in offsets]
+  assert all(a >= b for a, b in zip(targets, targets[1:], strict=False))
+  assert targets[0] > targets[3] > targets[-1]
   maneuver.distanceMeters = margin + 5.
   for offset in offsets:
-    assert turn_speed(maneuver, 0., traveled=5., earlier_m=offset) == turn_speed(maneuver, 0., traveled=5.)
+    assert turn_speed(maneuver, 0., traveled=5., timing_level=offset) == turn_speed(maneuver, 0., traveled=5.)
+
+
+@pytest.mark.parametrize("kph", [50., 80.])
+def test_latest_turn_timing_uses_existing_braking_limit(kph):
+  from openpilot.starpilot.navigation.intent import NAVIGATION_BRAKE_MAGNITUDE
+  speed = kph / 3.6
+  distance = 20. + (speed ** 2 - (14 * CV.MPH_TO_MS) ** 2) / (2 * NAVIGATION_BRAKE_MAGNITUDE)
+  maneuver = NS(maneuverType="turn", maneuverModifier="right", distanceMeters=distance)
+  assert turn_speed(maneuver, 0., timing_level=-3) == pytest.approx(speed)
+  assert turn_speed(maneuver, 0.) < speed
 
 
 def test_turn_ceiling_and_override(sm):

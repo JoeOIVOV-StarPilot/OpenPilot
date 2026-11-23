@@ -9,7 +9,7 @@ assert.deepEqual(SETTINGS_SECTIONS.find(section => section.id === 'lateral').pag
 assert.deepEqual(SETTINGS_SECTIONS.filter(section => section.pages.includes('navigation_planner')).map(section => section.label),
   ['Longitudinal (Speed & Following)'])
 assert(!SETTINGS_SECTIONS.some(section => section.id === 'navigation_planner'))
-for (const value of ['-75', '-50', '-25', '0', '25', '50', '75']) {
+for (const value of ['-3', '-2', '-1', '0', '1', '2', '3']) {
   const row = { value, defaultValue: '0' }
   assert.equal(GalaxySettingRow.computed.showDefault.call({ row, presentedRow: row }), value !== '0')
 }

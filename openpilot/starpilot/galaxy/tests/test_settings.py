@@ -45,16 +45,16 @@ class SettingsGatewayTest(unittest.TestCase):
 
   def test_navigation_turn_slider(self):
     self.assertFalse(any(row['label'] == 'Slow for navigation turns' for row in self.page('curve')['rows']))
-    for offset in (25, 75, 50, -75, -50, -25):
+    for offset in range(-3, 4):
       page = self.page('navigation_planner')
       index = next(i for i, row in enumerate(page['rows']) if row['label'] == 'Slow for navigation turns')
       row = page['rows'][index]
-      self.assertEqual((row['minimum'], row['maximum'], row['step'], row['unit']), (-75, 75, 25, 'm'))
+      self.assertEqual((row['minimum'], row['maximum'], row['step'], row['unit']), (-3, 3, 1, ''))
       with self.assertRaises(SettingsChanged):
         self.gateway.preview(page['view'], index, 0, self.session, self.generation, value=14)
       intent = self.gateway.preview(page['view'], index, 0, self.session, self.generation, value=offset)
       self.assertTrue(self.gateway.confirm(intent['intent'], self.session, self.generation))
-      self.assertEqual(read_saved(self.params, 'NavTurnSlowdownEarlier', 8), (str(offset).encode(), True))
+      self.assertEqual(read_saved(self.params, 'NavTurnSlowdownEarlier', 8), (str(offset * 25).encode(), True))
     page = self.page('navigation_planner')
     self.assertEqual(page['rows'][index]['defaultValue'], '0')
     intent = self.gateway.preview(page['view'], index, 0, self.session, self.generation, reset_default=True)
