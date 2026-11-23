@@ -116,10 +116,10 @@ class CarEvents:
     # so only use it for cancel when running openpilot longitudinal
     allow_button_cancel = self.CP.brand != 'hyundai'
 
-    if CS.doorOpen:
-      events.add(EventName.doorOpen)
-    if CS.seatbeltUnlatched:
-      events.add(EventName.seatbeltNotLatched)
+    #if CS.doorOpen:
+      #events.add(EventName.doorOpen)
+    #if CS.seatbeltUnlatched:
+      #events.add(EventName.seatbeltNotLatched)
     if ((CS.gearShifter != GearShifter.drive and CS.gearShifter not in CI.DRIVABLE_GEARS) or
         unsupported_gear(self.CP, CS.gearShifter)):
       events.add(EventName.wrongGear)
