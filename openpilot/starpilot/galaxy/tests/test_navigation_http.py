@@ -66,6 +66,28 @@ class NavigationHttpTest(unittest.TestCase):
     finally:
       connection.close()
 
+  def test_parked_phone_preview_is_optional_and_stateless(self):
+    path = '/api/navigation/phone-preview'
+    route = {'geometry': {'coordinates': [[-80, 44], [-80, 44.001], [-80.001, 44.001]]},
+             'distance': 191, 'duration': 24, 'legs': [{'steps': [
+               {'distance': 111, 'duration': 12, 'maneuver': {'type': 'depart', 'instruction': 'Head north'}},
+               {'distance': 80, 'duration': 12, 'maneuver': {'type': 'turn', 'modifier': 'left', 'instruction': 'Turn left'}},
+               {'distance': 0, 'duration': 0, 'maneuver': {'type': 'arrive', 'instruction': 'Arrive'}}]}]}
+    payload = {'version': 1, 'route': route}
+    before = self.navigation.read()
+    status = self.request('/api/navigation/status', cookie=self.local_cookie)[1]
+    self.assertEqual(status['phoneRoutePreviewVersion'], 1)
+    code, preview, _ = self.request(path, payload=payload, cookie=self.local_cookie)
+    self.assertEqual(code, 200)
+    self.assertEqual(preview['firstInstruction'], 'Turn left')
+    self.assertEqual(preview['points'][1], {'longitude': -80, 'latitude': 44.001})
+    self.assertEqual(preview['steps'], 3)
+    self.assertEqual(self.request(path, payload={'version': 1, 'route': {}}, cookie=self.local_cookie)[0], 400)
+    self.assertEqual(self.request(path, payload=payload, remote=True)[0], 401)
+    self.parked = False
+    self.assertEqual(self.request(path, payload=payload, cookie=self.local_cookie)[0], 409)
+    self.assertEqual(before, self.navigation.read())
+
   def test_map_tiles_recheck_authentication_after_provider(self):
     def tile(*args):
       self.pairing.unpair()
