@@ -59,7 +59,7 @@ def turn_desire(sm, now_ns: int, current_desire, *, supported: bool):
   return current_desire
 
 
-def turn_speed(maneuver, min_steer_speed: float, distance_offset: float = 0.) -> float | None:
+def turn_speed(maneuver, min_steer_speed: float, traveled: float = 0., earlier_m: int = 0) -> float | None:
   kind, modifier = maneuver.maneuverType, maneuver.maneuverModifier
   target = TARGET_MPH.get(modifier) if kind == 'turn' else None
   if modifier == 'uturn' or 'uturn' in kind or 'u-turn' in kind:
@@ -71,7 +71,12 @@ def turn_speed(maneuver, min_steer_speed: float, distance_offset: float = 0.) ->
   target = max(target * CV.MPH_TO_MS, min_steer_speed)
   ordinary = kind == 'turn' and modifier in ('left', 'right')
   approach_decel, settling_distance = (.75, 20.) if ordinary else (.45, 8.)
-  return math.sqrt(target * target + 2 * approach_decel * max(0., maneuver.distanceMeters - distance_offset - settling_distance))
+  remaining = max(0., maneuver.distanceMeters - traveled - settling_distance)
+  approach = approach_decel * max(0., maneuver.distanceMeters - traveled - settling_distance - earlier_m)
+  if earlier_m < 0:
+    # keep the turn target and settling distance when delaying the slowdown
+    approach = min(approach, NAVIGATION_BRAKE_MAGNITUDE * remaining)
+  return math.sqrt(target * target + 2 * approach)
 
 
 def cruise_ceiling(sm, CP, now_ns: int, cruise_mps: float, earlier_m: int = 0) -> float | None:
@@ -90,7 +95,7 @@ def cruise_ceiling(sm, CP, now_ns: int, cruise_mps: float, earlier_m: int = 0) -
   # route distance is measured at the location fix
   traveled = cs.vEgo * ((now_ns - nav.locationMonoTime) / 1e9)
   for instruction in (nav.instruction, nav.nextManeuver):
-    target = turn_speed(instruction, max(minimum, 0.), traveled + earlier_m)
+    target = turn_speed(instruction, max(minimum, 0.), traveled, earlier_m)
     if target is not None and target + .25 < cruise_mps:
       return target
   return None

@@ -42,7 +42,7 @@ from openpilot.starpilot.ui.vasm_owner import ANNOTATION as VASM_ANNOTATION, RES
 PAGES = frozenset(("hub", "developer", "localization", "starport_options", "vehicle",
                    "slc", "lane", "lane_change", "profiles", "profiles/developer", "personalities",
                    "traffic", "aggressive", "standard", "relaxed",
-                   "curve", "torque", "torque/developer", "tuning", "torque/bluepilot", "aol", "wheel", "appearance", "display",
+                   "navigation_planner", "curve", "torque", "torque/developer", "tuning", "torque/bluepilot", "aol", "wheel", "appearance", "display",
                    "data", "power", "sounds", "pip", "sentry", "vasm",
                    "conditional", "conditional/cem",
                    *(f"{name}/{category}" for name in ("traffic", "aggressive", "standard", "relaxed")
@@ -57,6 +57,7 @@ CAR_CONTROL_SECTIONS = (
   ("lateral", "Lateral (Steering)", ("aol", "lane_change", "lane", "torque", "torque/developer")),
   ("longitudinal", "Longitudinal (Speed & Following)",
    ("profiles", "conditional", "curve", "slc", "aggressive", "standard", "relaxed", "traffic")),
+  ("navigation_planner", "Navigation Planner", ("navigation_planner",)),
   ("wheel", "Wheel Controls", ("wheel",)),
   ("visual", "Visual (Display & UI)", ("display", "appearance", "pip")),
   ("sounds", "Sounds & Alerts", ("sounds",)),

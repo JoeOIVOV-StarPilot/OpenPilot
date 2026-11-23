@@ -63,7 +63,7 @@ def test_far_signal_is_available_for_lane_selection(sm):
   assert matching_turn_signal(sm, NOW, supported=True)
 
 
-@pytest.mark.parametrize("earlier", [0, 25, 50, 75])
+@pytest.mark.parametrize("earlier", [-75, -50, -25, 0, 25, 50, 75])
 def test_turn_distance_advances_between_fixes(sm, earlier):
   cp = NS(openpilotLongitudinalControl=True, passive=False, dashcamOnly=False, minSteerSpeed=0.)
   nav = sm['starpilotNavigation'].navigation
@@ -71,9 +71,20 @@ def test_turn_distance_advances_between_fixes(sm, earlier):
   sm['carState'].vEgo = 12.
   nav.locationMonoTime = NOW - 500_000_000
   target = cruise_ceiling(sm, cp, NOW, 30., earlier)
-  assert target == pytest.approx(turn_speed(nav.instruction, 0., earlier + 6.))
+  assert target == pytest.approx(turn_speed(nav.instruction, 0., 6., earlier))
   nav.locationMonoTime = NOW - 3_000_000_000
   assert cruise_ceiling(sm, cp, NOW, 30., earlier) is None
+
+
+@pytest.mark.parametrize("kind,modifier,margin", [("turn", "left", 20.), ("turn", "sharpRight", 8.), ("roundabout", "right", 8.)])
+def test_signed_distance_changes_approach_and_keeps_turn_target(kind, modifier, margin):
+  maneuver = NS(maneuverType=kind, maneuverModifier=modifier, distanceMeters=500.)
+  offsets = (-75, -50, -25, 0, 25, 50, 75)
+  targets = [turn_speed(maneuver, 0., earlier_m=offset) for offset in offsets]
+  assert all(a > b for a, b in zip(targets, targets[1:], strict=False))
+  maneuver.distanceMeters = margin + 5.
+  for offset in offsets:
+    assert turn_speed(maneuver, 0., traveled=5., earlier_m=offset) == turn_speed(maneuver, 0., traveled=5.)
 
 
 def test_turn_ceiling_and_override(sm):

@@ -907,6 +907,7 @@ class FeatureSettingsOwner:
               FeatureRow("", "Driving Modes", "Choose Automatic, Chill or Experimental", page=FeaturePage.CONDITIONAL, available=True),
               FeatureRow("", "Developer Parameters", "Advanced acceleration and braking parameters",
                          page=FeaturePage.DEVELOPER_LONGITUDINAL, available=True),
+              FeatureRow("", "Navigation Planner", "Adjust when to slow for routed turns", page=FeaturePage.NAVIGATION_PLANNER, available=True),
               FeatureRow("", "Wheel Controls", "Assign steering-wheel buttons and cruise behavior", page=FeaturePage.WHEEL, available=True)]
       if (self._long_pitch_capability() is not None or self._bolt_disable_capability() is not None or
           self._auto_hold_capability() is not None or self._toyota_sng_capability() is not None or self._jeep_hold_capability() is not None or
@@ -1054,6 +1055,16 @@ class FeatureSettingsOwner:
       title = "Driving Modes" if page == FeaturePage.CONDITIONAL else \
               "Automatic Conditions"
       rows.extend(self.conditional.rows(page, parked))
+    elif page == FeaturePage.NAVIGATION_PLANNER:
+      title = "Navigation Planner"
+      allowed = configurable and system_long and self.authority("long")
+      nav_value, nav_raw, valid = self._value("NavTurnSlowdownEarlier")
+      valid = valid and nav_value in ("-75", "-50", "-25", "0", "25", "50", "75")
+      rows.append(FeatureRow("NavTurnSlowdownEarlier", "Slow for navigation turns", nav_value if valid else "Invalid saved value",
+                             nav_raw, step=25., minimum=-75., maximum=75., unit="m", default_value="0",
+                             repair_value="" if valid else "0", vehicle_fingerprint=self.vehicle_fingerprint(),
+                             available=parked and allowed and self._readable("NavTurnSlowdownEarlier"),
+                             reason="Negative values start slowing later, positive values earlier. 0 m is standard. Applies on the next drive."))
     elif page == FeaturePage.CURVE:
       title = "Curve Speed Controller"
       allowed = configurable and system_long and self.authority("long")
@@ -1077,13 +1088,6 @@ class FeatureSettingsOwner:
                                  "Invalid saved learning" if not learning.valid else
                                  "Pauses curve speed adjustments while following a lead vehicle" if allowed else
                                  "Unavailable with the current vehicle or feature settings"))
-      nav_value, nav_raw, valid = self._value("NavTurnSlowdownEarlier")
-      valid = valid and nav_value in ("0", "25", "50", "75")
-      rows.append(FeatureRow("NavTurnSlowdownEarlier", "Slow for navigation turns", nav_value if valid else "Invalid saved value",
-                             nav_raw, step=25., minimum=0., maximum=75., unit="m", default_value="0",
-                             repair_value="" if valid else "0", vehicle_fingerprint=self.vehicle_fingerprint(),
-                             available=parked and allowed and self._readable("NavTurnSlowdownEarlier"),
-                             reason="Extra distance before a routed turn. 0 m is standard. Applies on the next drive."))
       rows.append(self._bool_row("ShowCSCStatus", "Show Curve status", allowed,
                                  reason="Display preference only; it does not enable control"))
       rows.append(FeatureRow("", "Saved learning", "Valid" if learning.valid else "Unavailable",
@@ -1485,7 +1489,7 @@ class FeatureSettingsOwner:
         distance = float(request.value)
       except (ValueError, TypeError):
         return False
-      if distance not in (0, 25, 50, 75) or not authorized():
+      if distance not in range(-75, 76, 25) or not authorized():
         return False
       return commit_exact(self.params, key=key, max_bytes=128, raw=str(int(distance)).encode(),
                           expected=request.expected, authorized=authorized, temp_prefix=".nav-turn-").verified

@@ -118,7 +118,7 @@ class LongitudinalPlanner:
                developer_tuning=None, nav_turn_earlier_m=0):
     self.CP = CP
     tuning = developer_tuning or {}
-    self.nav_turn_earlier_m = nav_turn_earlier_m if nav_turn_earlier_m in (0, 25, 50, 75) else 0
+    self.nav_turn_earlier_m = nav_turn_earlier_m if nav_turn_earlier_m in range(-75, 76, 25) else 0
     self.action_delay_override = tuning.get("delay")
     self.stop_speed = tuning.get("stop_speed", .3)
     self.max_accel_override = tuning.get("max_accel")

@@ -6,6 +6,14 @@ import { compile } from "../web/vendor/vue/vue.esm-browser.js"
 assert.deepEqual(SETTINGS_SECTIONS.find(section => section.id === 'lateral').pages,
   ['aol', 'lane_change', 'lane', 'torque', 'torque/developer'], 'Developer Parameters stays last in the requested lateral order')
 
+const longIndex = SETTINGS_SECTIONS.findIndex(section => section.id === 'longitudinal')
+assert.equal(SETTINGS_SECTIONS[longIndex + 1].label, 'Navigation Planner')
+assert.deepEqual(SETTINGS_SECTIONS[longIndex + 1].pages, ['navigation_planner'])
+for (const value of ['-75', '-50', '-25', '0', '25', '50', '75']) {
+  const row = { value, defaultValue: '0' }
+  assert.equal(GalaxySettingRow.computed.showDefault.call({ row, presentedRow: row }), value !== '0')
+}
+
 const requests = [], updates = []
 const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve() }
 const feed = new SettingsFeed({ publish: state => updates.push(state), later: () => 1, cancelTimer: () => {},
